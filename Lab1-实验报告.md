@@ -5,7 +5,7 @@
 | 课程 | 复旦大学 计算机系统基础（2026 年秋季学期） |
 | 姓名 / 学号 | 李和桥 / 25300190071 |
 | GitHub | [EdiwinJoe](https://github.com/EdiwinJoe) |
-| 仓库 | <https://github.com/EdiwinJoe/ICS_play> |
+| 仓库 | <https://github.com/EdiwinJoe/lab1Datalab> |
 | 文档 | <https://ics-26fall-fdu.github.io/labs/lab1-data-lab/> |
 | 完成日期 | 2026 年 10 月 9 日 |
 
@@ -310,7 +310,7 @@ int m1  = m2 ^ (m2 << 1);          /* 0x55555555 */
 
 ### 4.2 操作数核对
 
-按 `check_ops.py` 记录的上限统计（完整输出见 `check_ops_output.txt`）：
+按 `check_ops.py` 记录的上限统计（完整输出见 `lab1-check-ops-output.txt`）：
 
 | 函数 | 实际 | 上限 | 函数 | 实际 | 上限 |
 |---|---|---|---|---|---|
