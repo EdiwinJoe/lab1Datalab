@@ -1,7 +1,7 @@
 /* 
  * CS:APP Data Lab 
  * 
- * <Please put your name and userid here>
+ * 濠殿喗鎸搁幃鏇㈡晬濮橆厽缍嶉柛婊冩湰钘?   閻庢冻绠戣ぐ鍧楁晬?5300190071
  * 
  * bits.c - Source file with your solutions to the Lab.
  *          This is the file you will hand in to your instructor.
@@ -138,6 +138,20 @@ NOTES:
 #endif
 #include "bits.h"
 
+/* The exact signed comparison "p < q" is used by three puzzles below.  It is
+   expanded at each use site rather than defined as a function, because the lab
+   forbids adding functions to this file.  The expression is
+
+       ((((p ^ q) & p) | (~(p ^ q) & (p + ~q + 1))) >> 31) & 1
+
+   Its meaning: when the signs of p and q differ, (p ^ q) has its top bit set
+   and (p ^ q) & p is exactly the sign of p, which is the answer; when the signs
+   agree, no overflow is possible in p - q, so the wraparound difference
+   p + ~q + 1 is faithful and its sign bit is the answer.  The two cases are
+   OR-ed together because exactly one of the masks is non-zero. */
+
+
+
 // P1
 /* 
  * signMask - return a mask with only the most significant bit set (0x80000000)
@@ -146,7 +160,8 @@ NOTES:
  *   Rating: 1
  */
 int signMask(void) {
-  return 1;
+  /* 1 shifted left by 31 puts a single 1 into the sign position */
+  return 1 << 31;
 }
 
 // P2
@@ -158,7 +173,8 @@ int signMask(void) {
  *   Rating: 2
  */
 int bitXor(int x, int y) {
-	return 2;
+  /* the two "different" cases: at least one of them is 0, and not both are 1 */
+  return ~(~x & ~y) & ~(x & y);
 }
 
 // P3
@@ -170,9 +186,9 @@ int bitXor(int x, int y) {
  *   Rating: 3
  */
 int negativePart(int x){
-  return 3;
+  /* sign is all 1s exactly when x < 0; (x ^ -1) + 1 is -x */
+  return (x >> 31) & ((x ^ ~0) + 1);
 }
-
 
 // P4
 /*
@@ -185,7 +201,11 @@ int negativePart(int x){
  *   Rating: 4
  */
 int copyByteWithin(int x, int src, int dst) {
-  return 4;
+  /* bring the source byte down to the low 8 bits, build a 0xFF field at the
+     destination, clear that field and OR the byte back in */
+  int byte = (x >> (src << 3)) & 255;
+  int field = 255 << (dst << 3);
+  return (x & ~field) | (byte << (dst << 3));
 }
 
 // P5
@@ -198,7 +218,11 @@ int copyByteWithin(int x, int src, int dst) {
  *   Rating: 4
  */
 int logicalShift(int x, int n) {
-  return 5;
+  /* >> is arithmetic, so the vacated high bits copy the sign; a mask that
+     keeps only the low (32-n) bits removes them.  (1 << 31) >> 31 is all 1s and
+     shifting it left by (31-n) puts 1s into bits [31-n, 31]. */
+  int keep = ~((1 << 31) >> n << 1);
+  return (x >> n) & keep;
 }
 
 // P6
@@ -210,7 +234,13 @@ int logicalShift(int x, int n) {
  *   Rating: 4
  */
 int swapNibblePairs(int x) {
-  return 6;
+  /* 0x0F0F0F0F is built from small constants: 0x0F | (0x0F << 8) gives the
+     16-bit pattern and duplicating it at bit 16 gives the whole mask */
+  int m = 0x0F | (0x0F << 8);
+  int lowmask = m | (m << 16);
+  int low = x & lowmask;
+  int high = (x >> 4) & lowmask;
+  return (low << 4) | high;
 }
 
 // P7
@@ -223,7 +253,15 @@ int swapNibblePairs(int x) {
  *   Rating: 4
  */
 int secondLowestZeroBit(int x) {
-  return 7;
+  /* ~x marks every zero bit of x.  low = z & -z isolates the lowest set bit of
+     z (the lowest zero bit of x); removing it from z with z & ~low leaves the
+     rest, whose lowest set bit is precisely the second lowest zero bit of x.
+     If x has fewer than two zero bits, z holds at most that one bit and the
+     result is 0, which is the required answer for x == -1 and 0x7FFFFFFF. */
+  int z = ~x;
+  int low = z & (~z + 1);       /* z & -z : the lowest set bit of z */
+  int rest = z ^ low;           /* z without its lowest bit */
+  return rest & (~rest + 1);    /* rest & -rest : lowest bit of the rest */
 }
 
 // P8
@@ -236,7 +274,15 @@ int secondLowestZeroBit(int x) {
  *   Rating: 5
  */
 int oddParity(int x) {
-  return 8;
+  /* fold the word half by half with XOR; the low bit ends up holding the XOR
+     of all 32 bits, i.e. 1 exactly for an odd number of 1s; negate it so that
+     an even count (including x == 0) returns 1 */
+  x = x ^ (x >> 16);
+  x = x ^ (x >> 8);
+  x = x ^ (x >> 4);
+  x = x ^ (x >> 2);
+  x = x ^ (x >> 1);
+  return !(x & 1);
 }
 
 // P9
@@ -249,7 +295,12 @@ int oddParity(int x) {
  *   Rating: 5
  */
 int rotateRightBits(int x, int n) {
-  return 9;
+  /* reduce the shift to [0,31] so that the complementary shift is legal too,
+     then glue the low s bits in front of a logical right shift by s */
+  int s = n & 31;
+  int lost = x << ((32 + ~s + 1) & 31);
+  int keep = ~((1 << 31) >> s << 1);
+  return lost | ((x >> s) & keep);
 }
 
 // P10
@@ -264,7 +315,18 @@ int rotateRightBits(int x, int n) {
  *   Rating: 5
  */
 int roundEvenPow2(int x, int n) {
-  return 10;
+  /* the result is the truncated part plus optionally one more block.  The
+     remainder is classified by its top bit (rem >= half) and by the n-1 lower
+     bits (rem == half); a tie goes to the even quotient. */
+  int m1 = n + ~0;                        /* n - 1        */
+  int mask = (1 << n) + ~0;               /* low n bits   */
+  int lowmask = (1 << m1) + ~0;           /* low n-1 bits */
+  int rem = x & mask;
+  int cmp = (rem >> m1) & 1;              /* rem >= half  */
+  int sticky = !!(rem & lowmask);         /* rem != half  */
+  int odd = (x >> n) & 1;
+  int up = cmp & (sticky | odd);
+  return (x & ~mask) + (up << n);
 }
 
 // P11
@@ -280,9 +342,17 @@ int roundEvenPow2(int x, int n) {
  *   Rating: 5
  */
 int midpointTowardFirst(int x, int y) {
-  return 11;
+  /* x + y = 2*(floor(x/2)) + 2*(floor(y/2)) + (x&1) + (y&1), and the arithmetic
+     shift IS floor(v/2) for every int, so
+         floor((x+y)/2) = (x>>1) + (y>>1) + ((x&1) + (y&1))/2 .
+     The exact midpoint is a half integer exactly when x + y is odd; then it has
+     to be rounded towards x, i.e. up when x > y.  "x > y" is spelled out with
+     the comparison trick described above the first puzzle that needs it. */
+  int d = ~( ( ((x ^ y) & x) | (~(x ^ y) & (x + ~y + 1)) ) >> 31 ) & 1;  /* x >= y */
+  int gt = d & !!(x ^ y);                 /* x > y  */
+  int carry = (x & 1) + (y & 1);
+  return (x >> 1) + (y >> 1) + (carry >> 1) + (carry & gt);
 }
-
 
 // P12
 /* 
@@ -294,7 +364,25 @@ int midpointTowardFirst(int x, int y) {
  *   Rating: 7
  */
 int isBetweenEitherOrder(int x, int a, int b) {
-  return 12;
+  /* Reduce the unordered interval [a,b] to the ordered one [lo,hi] first.  A
+     direct signed comparison is available without any wider type: for values of
+     the same sign the difference cannot overflow, and for values of opposite
+     signs the sign of the operand already decides the order.  Both facts give
+     "p < q" as  (same-sign ? q-p<0 : p<0)  with sign(v) = v >> 31:
+         ((sp ^ sq) & sp) | (~(sp ^ sq) & ((p + ~q + 1) >> 31))
+     which is all ones exactly when p < q.  Applying it to (a,b) picks lo and
+     hi, and applying it to (x,lo) and (hi,x) bounds x from either side; the
+     inclusive interval accepts equality through the two negations. */
+  int sa = a >> 31, sb = b >> 31, sx = x >> 31;
+  int ab = sa ^ sb;                      /* sign(a) != sign(b) */
+  int alessb = (ab & sa) | (~ab & ((a + ~b + 1) >> 31));
+  int lo = (alessb & a) | (~alessb & b);
+  int hi = (alessb & b) | (~alessb & a);
+  int sl = lo >> 31, sh = hi >> 31;
+  int lx = sl ^ sx, hx = sh ^ sx;
+  int xlesslo = (lx & sx) | (~lx & ((x + ~lo + 1) >> 31));
+  int hilessx = (hx & sh) | (~hx & ((hi + ~x + 1) >> 31));
+  return (!xlesslo) & (!hilessx);
 }
 
 // P13
@@ -307,7 +395,18 @@ int isBetweenEitherOrder(int x, int a, int b) {
  *   Rating: 7
  */
 int mul5Sat(int x) {
-  return 13;
+  /* x*5 saturates exactly when |x| > INT_MAX/5 = 0x19999999.  The bound is
+     assembled from pieces small enough not to overflow, |x| is computed without
+     overflow, and the comparison is exact for every pair: for equal signs the
+     difference cannot overflow, and for opposite signs the sign of the first
+     operand settles it. */
+  int bnd = (0x19 << 24) + (0x99 << 16) + (0x99 << 8) + 0x99;
+  int sx = x >> 31;
+  int ax = (x ^ sx) + ~sx + 1;                       /* |x| */
+  int over = (bnd + ~ax + 1) >> 31;                  /* all 1s iff |x| > bnd */
+  int limit = (1 << 31) + ~sx;                       /* x<0: INT_MIN, else INT_MAX */
+  int prod = (x << 2) + x;
+  return (prod & ~over) | (limit & over);
 }
 
 // P14
@@ -320,7 +419,28 @@ int mul5Sat(int x) {
  *   Rating: 7
  */
 int classifyAdd3(int x, int y, int z) {
-  return 14;
+  /* Split every addend at bit 15: x = (x>>15)*2^15 + (x&0x7FFF), the high part
+     a signed value and the low part an unsigned 15-bit one.  Summing the
+     columns separately keeps every intermediate small, and folding the low
+     carry into the high column gives the exact sum as
+         S = H * 2^15 + L,   L unsigned in [0, 2^15)
+     with  H = (x>>15)+(y>>15)+(z>>15) + ((low sum) >> 15).
+     Because |S| < 3*2^31 the value H determines the range completely: since
+     0 <= L < 2^15, S is at most INT_MAX exactly when H <= 2^16-1, and at least
+     INT_MIN exactly when H >= -2^16.  Adding 2^16 shifts that window onto
+     [0, 2^17) and pushes every other H outside it, so the test is simply
+     whether (H + 2^16) has any bit at or above bit 17 set. */
+  int m15 = (0x7F << 8) + 0xFF;                      /* 0x7FFF */
+  int hs = (x >> 15) + (y >> 15) + (z >> 15);
+  int ls = (x & m15) + (y & m15) + (z & m15);
+  int H = hs + (ls >> 15);
+  int q = H + (1 << 16);                             /* window [0, 2^17) */
+  int sh = q >> 17;
+  int inr = !sh;                                     /* in range */
+  int pos = ~(H >> 31) & 1;                          /* H >= 0 -> positive */
+  int val = (pos << 1) + ~0;                         /* 1 or -1 */
+  int mask = inr + ~0;                               /* 0 if in range, else all ones */
+  return mask & val;
 }
 
 // P15
@@ -337,7 +457,50 @@ int classifyAdd3(int x, int y, int z) {
  *   Rating: 7
  */
 unsigned floatScaleThreeHalves(unsigned uf) {
-  return 15;
+  /* A finite float is M * 2^ex with M the 24-bit significand (the hidden bit
+     included for normals) and ex = E - 150 for normals, -149 for subnormals.
+     Then f*3/2 is exactly num * 2^ex with num = 3*M, a 24-, 25- or 26-bit value,
+     so a single correctly-rounded encoding step is all that is left.
+     num's exponent is P = ex + (bl - 1), and a float whose value has exponent P
+     uses the exponent field P + 127.  Dropping bl - 24 bits puts the leading one
+     on bit 23, where a float keeps its implicit bit; the dropped bits are the
+     round and sticky bits for round-to-nearest-even.  A field below 1 means the
+     result is subnormal, i.e. frac * 2^-149, which is num rounded against
+     2^-(ex+149). */
+  unsigned sign = uf & 0x80000000u;
+  int E = (uf >> 23) & 0xFFu;
+  unsigned M = (uf & 0x7FFFFFu) | (E ? 0x800000u : 0u);
+  unsigned num, m, rem, half;
+  int ex, field, sh, bl;
+
+  if (E == 0xFF) return uf;              /* infinity and NaN are unchanged */
+  if (E == 0 && M == 0u) return uf;      /* +0 and -0 keep their sign      */
+
+  num = M * 3u;
+  ex = (E ? E - 150 : -149);
+  bl = 24 + ((num >> 24) != 0u) + ((num >> 25) != 0u);
+  field = bl + ex + 125;
+  sh = bl - 24;                          /* bits to drop: 0, 1 or 2       */
+  m = num >> sh;
+
+  if (field >= 1) {                      /* normal result */
+    rem = num & ((1u << sh) - 1u);
+    half = 1u << (sh - 1);
+    if (rem > half || (rem == half && (m & 1u))) m += 1u;
+    if (m >= 0x1000000u) { m >>= 1; field += 1; }
+    if (field >= 0xFF) return sign | 0x7F800000u;
+    return sign | (field << 23) | (m & 0x7FFFFFu);
+  }
+
+  /* Subnormal result: value = frac * 2^-149, so frac is num with one bit
+     rounded off (the layout is already the fraction, not a 1.xxx form). */
+  sh = 1;
+  m = num >> sh;
+  rem = num & ((1u << sh) - 1u);
+  half = 1u << (sh - 1);
+  if (rem > half || (rem == half && (m & 1u))) m += 1u;
+  if (m >= 0x800000u) return sign | 0x00800000u;   /* rounded up to normal */
+  return sign | (m & 0x7FFFFFu);
 }
 
 // P16
@@ -353,21 +516,100 @@ unsigned floatScaleThreeHalves(unsigned uf) {
  *   Rating: 10
  */
 unsigned floatRoundEven(unsigned uf) {
-  return 16;
+  /* Work out the integer the value rounds to first, then encode it.  A float
+     with exponent field E has the value M * 2^(E-150) with M = 1.m * 2^23, so
+     it has 150-E fractional bits and the integer part is M >> (150-E).  Above
+     2^23 there is no fractional part, and below 0.5 the value rounds to a
+     signed zero.  One round bit plus the sticky bits give nearest-even; the
+     integer k is then normalized into [2^23, 2^24) and the exponent follows. */
+  unsigned sign = uf & 0x80000000u;
+  unsigned exp = (uf >> 23) & 0xFFu;
+  unsigned frac = uf & 0x7FFFFFu;
+  unsigned mant, shift, i, k, y, r, sticky;
+  int B, s;
+
+  if (exp == 0xFFu)
+    return uf;                            /* NaN and infinity keep the input */
+  if (exp < 126u)
+    return sign;                          /* |value| < 0.5 rounds to signed 0 */
+  if (exp > 150u)
+    return uf;                            /* already an integer */
+
+  mant = frac | 0x800000u;
+  shift = 150u - exp;                     /* fractional bits, 0..24 */
+  i = mant >> shift;                      /* the truncated integer part */
+  if (shift == 0u) {
+    r = 0u;
+    sticky = 0u;
+  } else if (shift == 24u) {
+    r = (mant >> 23) & 1u;
+    sticky = !! (mant & 0x7FFFFFu);
+  } else {
+    r = (mant >> (shift - 1u)) & 1u;
+    sticky = !! (mant & ((1u << (shift - 1u)) - 1u));
+  }
+  k = i;
+  if (r && (sticky || (k & 1u)))
+    k += 1u;                              /* nearest, ties to even */
+
+  if (k == 0u)
+    return sign;                          /* a negative value rounding to 0 */
+
+  /* k/2^s is the rounded integer expressed as y * 2^-(s+23), and k has the same
+     exponent as the original value scaled by 2^shift, so the unbiased exponent
+     of the result is exp - 150 + shift - s - 23.  Adding the bias 127 gives the
+     field below. */
+  y = k;
+  s = 0;
+  while ((y & 0x800000u) == 0u) {         /* normalize k into [2^23, 2^24) */
+    y <<= 1;
+    s += 1;
+  }
+  /* y equals k * 2^s and k * 2^(exp-150+shift) is the rounded integer, so y is
+     worth 2^(exp-150+shift-s).  Writing y as (2^23 + frac) * 2^(field-150) gives
+     field = exp + shift - s directly. */
+  B = exp + shift - s;
+  return sign | (B << 23) | (y & 0x7FFFFFu);
 }
 
 // P17
 /*
  * float_i2f - Return bit-level equivalent of expression (float) x.
  *   Result is returned as unsigned int, but
- *   it is to be interpreted as the bit-level representation of a
- *   single-precision floating point values.
+ *   it is to be interpreted as the bit-level representation of
+ *   a single-precision floating point values.
  *   Legal ops: Any integer / unsigned operations incl. ||, &&. also if, while
  *   Max ops: 40
  *   Rating: 10
  */
 unsigned float_i2f(int x) {
-  return 17;
+  unsigned sign = 0u, mag, e, mant, rest;
+
+  if (x == 0)
+    return 0u;
+  if (x < 0) {
+    sign = 0x80000000u;
+    mag = 0u - x;                  /* also correct for INT_MIN */
+  } else {
+    mag = x;
+  }
+
+  e = 31u;
+  while ((mag & 0x80000000u) == 0u) {     /* position of the leading 1 */
+    mag <<= 1;
+    e -= 1u;
+  }
+  /* the leading 1 is at bit 31 now; a float keeps 23 fraction bits, so drop
+     the low 8 bits with round-to-nearest-even */
+  rest = mag & 0x000000FFu;
+  mant = mag >> 8;
+  if (rest > 0x80u || (rest == 0x80u && (mant & 1u)))
+    mant += 1u;
+  if (mant & 0x01000000u) {        /* the significand carried out */
+    mant >>= 1;
+    e += 1u;
+  }
+  return sign | ((e + 127u) << 23) | (mant & 0x007FFFFFu);
 }
 
 
@@ -381,7 +623,21 @@ unsigned float_i2f(int x) {
  *   Rating: 10
  */
 int bitCount(int x) {
-  return 18;
+  /* parallel counters.  Every mask is built by OR-ing a small constant with a
+     copy of itself one byte higher, so all constants stay within 0..255. */
+  int m1 = 0x55 | (0x55 << 8);
+  int m2 = 0x33 | (0x33 << 8);
+  int m4 = 0x0F | (0x0F << 8);
+  m1 = m1 | (m1 << 16);                  /* 0x55555555 */
+  m2 = m2 | (m2 << 16);                  /* 0x33333333 */
+  m4 = m4 | (m4 << 16);                  /* 0x0F0F0F0F */
+
+  x = (x & m1) + ((x >> 1) & m1);        /* bit pairs  */
+  x = (x & m2) + ((x >> 2) & m2);        /* nibbles    */
+  x = (x + (x >> 4)) & m4;               /* bytes      */
+  x = x + (x >> 8);                      /* two bytes  */
+  x = (x + (x >> 16)) & 0x3F;            /* total      */
+  return x;
 }
 
 // P19
@@ -395,5 +651,27 @@ int bitCount(int x) {
  */
 int bitReverse(int x)
 {
-  return 19;
+  /* Five parallel swap stages: neighbouring bits, pairs, nibbles, bytes and the
+     two halves.  A stage that exchanges fields s apart keeps the bits below the
+     field boundary in m, moves them up by s, and moves the bits above down by s.
+     All masks are grown from small literals with shifts and XOR: 0x00FF00FF and
+     0x0000FFFF are one OR each, and the three repeating masks follow from
+        0x00FF00FF ^ (0x00FF00FF << 4) = 0x0F0F0F0F
+        0x0F0F0F0F ^ (0x0F0F0F0F << 2) = 0x33333333
+        0x33333333 ^ (0x33333333 << 1) = 0x55555555
+     so no multiplication and no large constant is needed. */
+  int m16 = 0xFF | (0xFF << 8);          /* 0x0000FFFF */
+  int m8  = 0xFF | (0xFF << 16);         /* 0x00FF00FF */
+  int m4  = m8 ^ (m8 << 4);              /* 0x0F0F0F0F */
+  int m2  = m4 ^ (m4 << 2);              /* 0x33333333 */
+  int m1  = m2 ^ (m2 << 1);              /* 0x55555555 */
+
+  x = ((x & m1) << 1) | ((x >> 1) & m1);
+  x = ((x & m2) << 2) | ((x >> 2) & m2);
+  x = ((x & m4) << 4) | ((x >> 4) & m4);
+  x = ((x & m8) << 8) | ((x >> 8) & m8);
+  return (x << 16) | ((x >> 16) & m16);
 }
+
+
+
